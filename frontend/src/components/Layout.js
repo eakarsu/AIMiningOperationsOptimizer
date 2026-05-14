@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 const navItems = [
   { path: '/', label: 'Dashboard', icon: '\u2302' },
   { path: '/analytics', label: 'Analytics', icon: '\u2261' },
+  { path: '/ai-tools', label: 'AI Tools', icon: '\u2728' },
   { path: '/ore-grades', label: 'Ore Grade Prediction', icon: '\u25C7' },
   { path: '/drill-patterns', label: 'Drill Optimization', icon: '\u2316' },
   { path: '/safety-incidents', label: 'Safety Monitoring', icon: '\u26A0' },

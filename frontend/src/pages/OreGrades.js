@@ -11,6 +11,7 @@ const emptyForm = {
 
 function OreGrades() {
   const [items, setItems] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
   const [selected, setSelected] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -19,13 +20,23 @@ function OreGrades() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
 
-  const fetchItems = async () => {
+  const fetchItems = async (page = 1) => {
     try {
-      const res = await api.get('/ore-grades');
-      setItems(res.data);
+      const res = await api.get('/ore-grades', { params: { page, pageSize: pagination.pageSize } });
+      const d = res.data;
+      if (d.data) { setItems(d.data); setPagination(d.pagination); }
+      else setItems(d);
     } catch (e) {
       toast.error('Failed to load data');
     }
+  };
+
+  const exportCSV = async () => {
+    try {
+      const res = await api.get('/export/ore-grades', { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement('a'); a.href = url; a.download = 'ore-grades.csv'; a.click();
+    } catch (e) { toast.error('Export failed'); }
   };
 
   useEffect(() => { fetchItems(); }, []);
@@ -122,6 +133,7 @@ function OreGrades() {
       </div>
       <div className="page-actions">
         <button className="btn btn-primary" onClick={handleNew}>+ New Sample</button>
+        <button className="btn btn-secondary" onClick={exportCSV} style={{ marginLeft: '8px' }}>Export CSV</button>
       </div>
 
       <div className="data-table-container">
@@ -164,6 +176,15 @@ function OreGrades() {
         )}
       </div>
 
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px', alignItems: 'center' }}>
+          <button className="btn btn-secondary" disabled={pagination.page <= 1} onClick={() => fetchItems(pagination.page - 1)}>Prev</button>
+          <span style={{ color: '#94a3b8', fontSize: '14px' }}>Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)</span>
+          <button className="btn btn-secondary" disabled={pagination.page >= pagination.totalPages} onClick={() => fetchItems(pagination.page + 1)}>Next</button>
+        </div>
+      )}
+
       {/* Detail Modal */}
       <Modal isOpen={showDetail} onClose={() => setShowDetail(false)} title="Ore Sample Details">
         {selected && (
@@ -189,7 +210,7 @@ function OreGrades() {
                 {aiLoading ? 'Analyzing...' : 'AI Predict Grade'}
               </button>
             </div>
-            <AIResultDisplay result={aiResult} loading={aiLoading} />
+            <AIResultDisplay result={aiResult} loading={aiLoading} entityType="ore_grade" />
           </>
         )}
       </Modal>

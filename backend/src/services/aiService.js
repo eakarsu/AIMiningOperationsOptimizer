@@ -3,7 +3,23 @@ const http = require('http');
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../../.env') });
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
-const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-haiku-4.5';
+const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-3-5-sonnet-20241022';
+
+// Parse structured JSON from AI response
+function parseAIJson(content) {
+  try {
+    return JSON.parse(content);
+  } catch {
+    const match = content.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {}
+    }
+    // Return as-is wrapped in a content field if JSON parsing fails
+    return { content, _parse_error: true };
+  }
+}
 
 async function callOpenRouter(prompt, systemPrompt = '') {
   return new Promise((resolve, reject) => {
@@ -14,7 +30,7 @@ async function callOpenRouter(prompt, systemPrompt = '') {
         { role: 'user', content: prompt }
       ],
       max_tokens: 2000,
-      temperature: 0.7
+      temperature: 0.3
     });
 
     const options = {
@@ -42,6 +58,7 @@ async function callOpenRouter(prompt, systemPrompt = '') {
           const content = parsed.choices?.[0]?.message?.content || 'No response generated';
           resolve({
             content,
+            parsed: parseAIJson(content),
             model: parsed.model,
             usage: parsed.usage,
             id: parsed.id
@@ -69,16 +86,10 @@ async function predictOreGrade(sample) {
 - Current Grade: ${sample.gradePercentage}%
 - Tonnage: ${sample.tonnage} tons
 
-Provide a detailed analysis including:
-1. Grade quality assessment (High/Medium/Low)
-2. Predicted optimal extraction depth
-3. Estimated recovery rate percentage
-4. Economic viability score (1-10)
-5. Recommendations for extraction method
-6. Risk factors
-7. Confidence level of prediction`;
+Return JSON: { quality_assessment: "High|Medium|Low", grade_percentage: number, processing_recommendation: "string", economic_value_estimate: "string", risk_factors: ["string"], confidence_level: number, extraction_depth: "string", recovery_rate_percent: number }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert mining geologist AI assistant specializing in ore grade prediction and mineral resource assessment.';
+  const systemPrompt = 'You are an expert mining geologist AI assistant specializing in ore grade prediction and mineral resource assessment. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -96,17 +107,10 @@ async function optimizeDrillPattern(pattern) {
 - Explosive Type: ${pattern.explosiveType}
 - Explosive Amount: ${pattern.explosiveAmount}kg
 
-Provide optimization recommendations:
-1. Optimal spacing and burden ratio
-2. Recommended hole depth adjustment
-3. Explosive charge optimization
-4. Fragmentation prediction
-5. Vibration risk assessment
-6. Cost efficiency improvement percentage
-7. Safety recommendations
-8. Environmental impact minimization`;
+Return JSON: { efficiency_score: number, optimal_spacing: number, optimal_burden: number, recommended_hole_depth: number, fragmentation_prediction: "string", vibration_risk: "low|medium|high", cost_efficiency_improvement_pct: number, safety_recommendations: ["string"], environmental_notes: "string" }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert mining blast engineer AI specializing in drill pattern optimization and blast design.';
+  const systemPrompt = 'You are an expert mining blast engineer AI specializing in drill pattern optimization and blast design. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -122,17 +126,10 @@ async function analyzeSafetyIncident(incident) {
 - Injuries: ${incident.injuriesCount}
 - Date: ${incident.date}
 
-Provide detailed analysis:
-1. Root cause analysis
-2. Risk level assessment (Critical/High/Medium/Low)
-3. Similar incident pattern recognition
-4. Preventive measures recommended
-5. Required safety protocol updates
-6. Training recommendations
-7. Equipment inspection requirements
-8. Estimated resolution timeline`;
+Return JSON: { risk_level: "low|medium|high|critical", incident_type_classification: "string", immediate_actions: ["string"], preventive_measures: ["string"], regulatory_compliance_notes: "string", root_cause: "string", training_recommendations: ["string"], resolution_timeline: "string" }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert mining safety engineer AI specializing in incident analysis, risk assessment, and safety compliance.';
+  const systemPrompt = 'You are an expert mining safety engineer AI specializing in incident analysis, risk assessment, and safety compliance. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -151,17 +148,10 @@ async function analyzeEquipment(equipment) {
 - Last Maintenance: ${equipment.lastMaintenance}
 - Maintenance Due: ${equipment.maintenanceDue}
 
-Provide comprehensive analysis:
-1. Equipment health score (1-100)
-2. Predicted remaining useful life
-3. Maintenance priority level
-4. Fuel efficiency optimization suggestions
-5. Utilization improvement recommendations
-6. Replacement vs repair cost analysis
-7. Optimal operating schedule
-8. Downtime reduction strategies`;
+Return JSON: { health_score: number, failure_risk: "low|medium|high", maintenance_priority: "string", recommended_actions: ["string"], estimated_downtime_days: number, remaining_useful_life: "string", fuel_efficiency_rating: "string", utilization_improvement: "string" }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert mining equipment engineer AI specializing in fleet management, predictive maintenance, and equipment utilization optimization.';
+  const systemPrompt = 'You are an expert mining equipment engineer AI specializing in fleet management, predictive maintenance, and equipment utilization optimization. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -177,17 +167,10 @@ async function assessEnvironmentalCompliance(report) {
 - Monitoring Date: ${report.monitoringDate}
 - Current Status: ${report.complianceStatus}
 
-Provide comprehensive assessment:
-1. Compliance risk score (1-10)
-2. Trend analysis and projection
-3. Regulatory violation probability
-4. Recommended corrective actions
-5. Environmental impact assessment
-6. Monitoring frequency recommendation
-7. Mitigation strategies
-8. Reporting requirements`;
+Return JSON: { compliance_risk_score: number, violation_probability: "low|medium|high", corrective_actions: ["string"], environmental_impact: "string", monitoring_frequency: "string", mitigation_strategies: ["string"], reporting_requirements: "string", trend_projection: "string" }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert environmental compliance AI specializing in mining environmental monitoring, regulatory compliance, and environmental impact assessment.';
+  const systemPrompt = 'You are an expert environmental compliance AI specializing in mining environmental monitoring, regulatory compliance, and environmental impact assessment. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -206,17 +189,10 @@ async function analyzeProduction(log) {
 - Operator Count: ${log.operatorCount}
 - Supervisor: ${log.supervisor}
 
-Provide production analysis:
-1. Production efficiency score (1-100)
-2. Throughput optimization recommendations
-3. Recovery rate improvement strategies
-4. Downtime root cause analysis
-5. Staffing optimization suggestions
-6. Cost per ton analysis
-7. Shift performance comparison insights
-8. Bottleneck identification`;
+Return JSON: { efficiency_score: number, throughput_recommendations: ["string"], recovery_improvement: "string", downtime_cause: "string", staffing_optimization: "string", cost_per_ton_assessment: "string", bottlenecks: ["string"], shift_performance_rating: "Excellent|Good|Average|Poor" }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert mining production engineer AI specializing in production optimization, throughput analysis, and operational efficiency.';
+  const systemPrompt = 'You are an expert mining production engineer AI specializing in production optimization, throughput analysis, and operational efficiency. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -235,17 +211,10 @@ async function analyzeWorkforce(worker) {
 - Hours This Month: ${worker.hoursThisMonth}
 - Status: ${worker.status}
 
-Provide comprehensive workforce analysis:
-1. Worker performance assessment
-2. Fatigue risk level based on hours worked
-3. Certification renewal urgency
-4. Training recommendations
-5. Career development suggestions
-6. Safety improvement areas
-7. Optimal shift assignment recommendation
-8. Overtime risk assessment`;
+Return JSON: { performance_rating: "Excellent|Good|Average|Poor", fatigue_risk: "low|medium|high", fatigue_score: number, certification_urgency: "none|upcoming|urgent|expired", training_recommendations: ["string"], shift_recommendation: "string", overtime_risk: "low|medium|high", safety_improvement_areas: ["string"] }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert mining workforce management AI specializing in human resources, safety compliance, fatigue management, and workforce optimization in mining operations.';
+  const systemPrompt = 'You are an expert mining workforce management AI specializing in human resources, safety compliance, fatigue management, and workforce optimization in mining operations. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -263,17 +232,10 @@ async function analyzeCost(cost) {
 - Zone: ${cost.zone}
 - Cost Per Ton: $${cost.costPerTon}
 
-Provide comprehensive cost analysis:
-1. Budget adherence score (1-10)
-2. Cost reduction opportunities
-3. Variance root cause analysis
-4. Benchmarking against industry standards
-5. Cost optimization recommendations
-6. ROI improvement strategies
-7. Forecasting for next period
-8. Risk of budget overrun assessment`;
+Return JSON: { budget_adherence_score: number, overrun_risk: "low|medium|high", variance_cause: "string", cost_reduction_opportunities: ["string"], optimization_recommendations: ["string"], next_period_forecast: "string", roi_improvement: "string", industry_benchmark_comparison: "string" }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert mining financial analyst AI specializing in cost optimization, budget management, and financial forecasting for mining operations.';
+  const systemPrompt = 'You are an expert mining financial analyst AI specializing in cost optimization, budget management, and financial forecasting for mining operations. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -294,17 +256,10 @@ async function interpretGeology(survey) {
 - Confidence: ${survey.confidence}%
 - Notes: ${survey.notes || 'None'}
 
-Provide geological interpretation:
-1. Mineralization potential assessment
-2. Structural stability analysis
-3. Recommended exploration targets
-4. Mining method suitability
-5. Ground support requirements
-6. Water ingress risk
-7. Geotechnical hazard assessment
-8. Resource estimation confidence level`;
+Return JSON: { mineralization_potential: "low|medium|high|very_high", structural_stability: "stable|moderate|unstable", exploration_targets: ["string"], mining_method: "string", ground_support_requirements: "string", water_ingress_risk: "low|medium|high", geotechnical_hazards: ["string"], resource_confidence: number }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert mining geologist AI specializing in geological interpretation, structural analysis, resource estimation, and mine planning.';
+  const systemPrompt = 'You are an expert mining geologist AI specializing in geological interpretation, structural analysis, resource estimation, and mine planning. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -324,17 +279,33 @@ async function optimizeHauling(trip) {
 - Date: ${trip.date}
 - Shift: ${trip.shift}
 
-Provide hauling optimization analysis:
-1. Route efficiency score (1-100)
-2. Fuel efficiency assessment (L/ton-km)
-3. Optimal load weight recommendation
-4. Route optimization suggestions
-5. Cycle time reduction strategies
-6. Fleet dispatch recommendations
-7. Driver performance assessment
-8. Cost per ton-km analysis`;
+Return JSON: { route_efficiency_score: number, fuel_efficiency_l_per_ton_km: number, optimal_load_weight: number, route_suggestions: ["string"], cycle_time_reduction: "string", fleet_dispatch_recommendation: "string", driver_performance: "Excellent|Good|Average|Poor", cost_per_ton_km: number }
+Only respond with valid JSON, no additional text.`;
 
-  const systemPrompt = 'You are an expert mining logistics AI specializing in hauling optimization, fleet dispatch, route planning, and transportation efficiency in mining operations.';
+  const systemPrompt = 'You are an expert mining logistics AI specializing in hauling optimization, fleet dispatch, route planning, and transportation efficiency in mining operations. Always return valid JSON.';
+  return callOpenRouter(prompt, systemPrompt);
+}
+
+// Cross-domain correlation analysis
+async function analyzeCorrelations(data) {
+  const prompt = `Find correlations in this mining operations data and provide actionable insights.
+
+Data:
+- Average Ore Grade: ${data.avgOreGrade}%
+- Equipment Downtime Count: ${data.equipmentDowntime} records
+- Safety Incidents (recent): ${data.safetyIncidents}
+- Average Workforce Fatigue Hours: ${data.avgFatigueHours}h this month
+
+Return JSON: {
+  "correlations": [
+    { "metric_a": "string", "metric_b": "string", "correlation": "positive|negative|none", "strength": "strong|moderate|weak", "insight": "string" }
+  ],
+  "top_production_risk": "string",
+  "recommendations": ["string"]
+}
+Only respond with valid JSON, no additional text.`;
+
+  const systemPrompt = 'You are an expert mining operations analyst AI. Identify data correlations and operational risks. Always return valid JSON.';
   return callOpenRouter(prompt, systemPrompt);
 }
 
@@ -348,5 +319,7 @@ module.exports = {
   analyzeWorkforce,
   analyzeCost,
   interpretGeology,
-  optimizeHauling
+  optimizeHauling,
+  analyzeCorrelations,
+  parseAIJson
 };

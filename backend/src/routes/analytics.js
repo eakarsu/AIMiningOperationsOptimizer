@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Sequelize } = require('sequelize');
+const { Sequelize, Op } = require('sequelize');
 const {
   OreGrade, DrillPattern, SafetyIncident, Equipment,
   EnvironmentalCompliance, ProductionLog, WorkforceRecord,
@@ -8,6 +8,8 @@ const {
   MaintenanceSchedule, InventoryItem, ShiftSchedule
 } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
+const { generateYieldForecast } = require('../services/yieldForecastService');
+const { analyzeCorrelations } = require('../services/aiService');
 
 router.use(authenticateToken);
 
@@ -96,6 +98,99 @@ router.get('/alerts-summary', async (req, res) => {
     });
     res.json(alerts);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /yield-forecast - AI-predicted ore grades and yields for next 30 days
+// Uses recent ore grade samples + active drill patterns as context for the prediction.
+router.get('/yield-forecast', async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    // Fetch context data in parallel
+    const [oreGrades, drillPatterns] = await Promise.all([
+      OreGrade.findAll({
+        where: { createdAt: { [Op.gte]: thirtyDaysAgo } },
+        order: [['createdAt', 'DESC']],
+        limit: 200,
+      }),
+      DrillPattern.findAll({
+        order: [['createdAt', 'DESC']],
+        limit: 50,
+      }),
+    ]);
+
+    if (oreGrades.length === 0) {
+      return res.status(400).json({
+        error: 'Insufficient data',
+        message: 'No ore grade samples found in the last 30 days. Add ore grade data to generate a forecast.',
+      });
+    }
+
+    const forecast = await generateYieldForecast(
+      oreGrades.map(g => g.toJSON()),
+      drillPatterns.map(p => p.toJSON()),
+    );
+
+    res.json({
+      period: {
+        from: new Date().toISOString(),
+        to: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        days: 30,
+      },
+      inputSummary: {
+        oreGradeSamples: oreGrades.length,
+        drillPatterns: drillPatterns.length,
+        zones: [...new Set(oreGrades.map(g => g.zone))],
+      },
+      ...forecast,
+    });
+  } catch (error) {
+    console.error('Yield forecast error:', error);
+    res.status(500).json({ error: error.message || 'Failed to generate yield forecast' });
+  }
+});
+
+// GET /analytics/correlations — AI cross-domain correlation analysis
+router.get('/correlations', async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [oreGrades, equipmentDowntime, safetyIncidents, workforce] = await Promise.all([
+      OreGrade.findAll({ where: { createdAt: { [Op.gte]: thirtyDaysAgo } }, attributes: ['gradePercentage'] }),
+      Equipment.count({ where: { status: { [Op.in]: ['maintenance', 'breakdown'] } } }),
+      SafetyIncident.count({ where: { createdAt: { [Op.gte]: thirtyDaysAgo } } }),
+      WorkforceRecord.findAll({ attributes: ['hoursThisMonth'] }),
+    ]);
+
+    const avgOreGrade = oreGrades.length
+      ? (oreGrades.reduce((s, g) => s + (g.gradePercentage || 0), 0) / oreGrades.length).toFixed(2)
+      : 0;
+
+    const avgFatigueHours = workforce.length
+      ? (workforce.reduce((s, w) => s + (w.hoursThisMonth || 0), 0) / workforce.length).toFixed(1)
+      : 0;
+
+    const aiResult = await analyzeCorrelations({
+      avgOreGrade,
+      equipmentDowntime,
+      safetyIncidents,
+      avgFatigueHours,
+    });
+
+    res.json({
+      summary: {
+        avgOreGrade,
+        equipmentDowntime,
+        safetyIncidents,
+        avgFatigueHours,
+        periodDays: 30,
+      },
+      analysis: aiResult.parsed || aiResult,
+    });
+  } catch (error) {
+    console.error('Correlations error:', error);
     res.status(500).json({ error: error.message });
   }
 });

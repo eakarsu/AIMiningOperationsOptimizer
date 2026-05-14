@@ -11,6 +11,7 @@ const emptyForm = {
 
 function HaulingLogistics() {
   const [items, setItems] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
   const [selected, setSelected] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -19,8 +20,18 @@ function HaulingLogistics() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
 
-  const fetchItems = async () => {
-    try { const res = await api.get('/hauling'); setItems(res.data); } catch (e) { toast.error('Failed to load'); }
+  const fetchItems = async (page = 1) => {
+    try {
+      const res = await api.get('/hauling', { params: { page, pageSize: pagination.pageSize } });
+      const d = res.data;
+      if (d.data) { setItems(d.data); setPagination(d.pagination); } else setItems(d);
+    } catch (e) { toast.error('Failed to load'); }
+  };
+  const exportCSV = async () => {
+    try {
+      const res = await api.get('/export/hauling', { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data); const a = document.createElement('a'); a.href = url; a.download = 'hauling-logistics.csv'; a.click();
+    } catch (e) { toast.error('Export failed'); }
   };
   useEffect(() => { fetchItems(); }, []);
 
@@ -69,7 +80,10 @@ function HaulingLogistics() {
         <h1>Hauling & Logistics</h1>
         <p>AI-powered route optimization and fleet dispatch management</p>
       </div>
-      <div className="page-actions"><button className="btn btn-primary" onClick={handleNew}>+ New Trip</button></div>
+      <div className="page-actions">
+        <button className="btn btn-primary" onClick={handleNew}>+ New Trip</button>
+        <button className="btn btn-secondary" onClick={exportCSV} style={{ marginLeft: '8px' }}>Export CSV</button>
+      </div>
       <div className="data-table-container">
         <table className="data-table">
           <thead><tr><th>Trip ID</th><th>Truck</th><th>Driver</th><th>Origin</th><th>Destination</th><th>Load (t)</th><th>Distance</th><th>Duration</th><th>Fuel (L)</th><th>Status</th></tr></thead>
@@ -86,6 +100,14 @@ function HaulingLogistics() {
         </table>
         {items.length === 0 && <div className="empty-state"><h3>No hauling records</h3></div>}
       </div>
+
+      {pagination.totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px', alignItems: 'center' }}>
+          <button className="btn btn-secondary" disabled={pagination.page <= 1} onClick={() => fetchItems(pagination.page - 1)}>Prev</button>
+          <span style={{ color: '#94a3b8', fontSize: '14px' }}>Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)</span>
+          <button className="btn btn-secondary" disabled={pagination.page >= pagination.totalPages} onClick={() => fetchItems(pagination.page + 1)}>Next</button>
+        </div>
+      )}
 
       <Modal isOpen={showDetail} onClose={() => setShowDetail(false)} title="Hauling Trip Details">
         {selected && (
@@ -113,7 +135,7 @@ function HaulingLogistics() {
               <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
               <button className="btn btn-success" onClick={handleAIOptimize} disabled={aiLoading}>{aiLoading ? 'Optimizing...' : 'AI Route Optimization'}</button>
             </div>
-            <AIResultDisplay result={aiResult} loading={aiLoading} />
+            <AIResultDisplay result={aiResult} loading={aiLoading} entityType="hauling" />
           </>
         )}
       </Modal>

@@ -11,6 +11,7 @@ const emptyForm = {
 
 function EnvironmentalCompliance() {
   const [items, setItems] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, pageSize: 20, total: 0, totalPages: 1 });
   const [selected, setSelected] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -19,8 +20,18 @@ function EnvironmentalCompliance() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState(null);
 
-  const fetchItems = async () => {
-    try { const res = await api.get('/environmental'); setItems(res.data); } catch (e) { toast.error('Failed to load'); }
+  const fetchItems = async (page = 1) => {
+    try {
+      const res = await api.get('/environmental', { params: { page, pageSize: pagination.pageSize } });
+      const d = res.data;
+      if (d.data) { setItems(d.data); setPagination(d.pagination); } else setItems(d);
+    } catch (e) { toast.error('Failed to load'); }
+  };
+  const exportCSV = async () => {
+    try {
+      const res = await api.get('/export/environmental', { responseType: 'blob' });
+      const url = URL.createObjectURL(res.data); const a = document.createElement('a'); a.href = url; a.download = 'environmental-compliance.csv'; a.click();
+    } catch (e) { toast.error('Export failed'); }
   };
   useEffect(() => { fetchItems(); }, []);
 
@@ -69,7 +80,10 @@ function EnvironmentalCompliance() {
         <h1>Environmental Compliance</h1>
         <p>AI-powered regulatory monitoring and compliance assessment</p>
       </div>
-      <div className="page-actions"><button className="btn btn-primary" onClick={handleNew}>+ New Report</button></div>
+      <div className="page-actions">
+        <button className="btn btn-primary" onClick={handleNew}>+ New Report</button>
+        <button className="btn btn-secondary" onClick={exportCSV} style={{ marginLeft: '8px' }}>Export CSV</button>
+      </div>
       <div className="data-table-container">
         <table className="data-table">
           <thead><tr><th>Report ID</th><th>Category</th><th>Parameter</th><th>Measured</th><th>Limit</th><th>Location</th><th>Date</th><th>Status</th></tr></thead>
@@ -86,6 +100,14 @@ function EnvironmentalCompliance() {
         </table>
         {items.length === 0 && <div className="empty-state"><div className="empty-icon">{'\u2618'}</div><h3>No reports yet</h3></div>}
       </div>
+
+      {pagination.totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginTop: '16px', alignItems: 'center' }}>
+          <button className="btn btn-secondary" disabled={pagination.page <= 1} onClick={() => fetchItems(pagination.page - 1)}>Prev</button>
+          <span style={{ color: '#94a3b8', fontSize: '14px' }}>Page {pagination.page} of {pagination.totalPages} ({pagination.total} total)</span>
+          <button className="btn btn-secondary" disabled={pagination.page >= pagination.totalPages} onClick={() => fetchItems(pagination.page + 1)}>Next</button>
+        </div>
+      )}
 
       <Modal isOpen={showDetail} onClose={() => setShowDetail(false)} title="Environmental Report Details">
         {selected && (
@@ -110,7 +132,7 @@ function EnvironmentalCompliance() {
               <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
               <button className="btn btn-success" onClick={handleAIAssess} disabled={aiLoading}>{aiLoading ? 'Assessing...' : 'AI Compliance Assessment'}</button>
             </div>
-            <AIResultDisplay result={aiResult} loading={aiLoading} />
+            <AIResultDisplay result={aiResult} loading={aiLoading} entityType="environmental" />
           </>
         )}
       </Modal>

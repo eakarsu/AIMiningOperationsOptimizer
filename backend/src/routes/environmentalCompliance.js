@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { EnvironmentalCompliance } = require('../models');
 const { authenticateToken } = require('../middleware/auth');
+const sequelize = require('../config/database');
+const { aiRateLimiter } = require('../middleware/rateLimiter');
 const { assessEnvironmentalCompliance } = require('../services/aiService');
 
 router.use(authenticateToken);
@@ -56,12 +58,13 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-router.post('/:id/assess', async (req, res) => {
+router.post('/:id/assess', aiRateLimiter, async (req, res) => {
   try {
     const item = await EnvironmentalCompliance.findByPk(req.params.id);
     if (!item) return res.status(404).json({ error: 'Not found' });
     const aiResult = await assessEnvironmentalCompliance(item);
     await item.update({ aiAssessment: aiResult, complianceStatus: 'assessed' });
+    try { await sequelize.query(`INSERT INTO ai_analyses (entity_type, entity_id, user_id, result) VALUES (:t,:e,:u,:r)`, { replacements: { t: 'environmental', e: item.id, u: req.user?.id || null, r: JSON.stringify(aiResult) } }); } catch {}
     res.json({ item, aiResult });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -25,6 +25,7 @@ import InventoryPage from './pages/InventoryPage';
 import SearchPage from './pages/SearchPage';
 import ReportsPage from './pages/ReportsPage';
 import ExportPage from './pages/ExportPage';
+import AIToolsPage from './pages/AIToolsPage';
 import Layout from './components/Layout';
 
 function App() {
@@ -87,6 +88,7 @@ function App() {
           <Route path="/search" element={authRoute(SearchPage)} />
           <Route path="/reports" element={authRoute(ReportsPage)} />
           <Route path="/export" element={authRoute(ExportPage)} />
+          <Route path="/ai-tools" element={authRoute(AIToolsPage)} />
         </Routes>
       </div>
     </Router>

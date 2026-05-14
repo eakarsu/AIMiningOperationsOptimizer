@@ -8,6 +8,8 @@ function Analytics() {
   const [equipmentStatus, setEquipmentStatus] = useState(null);
   const [productionSummary, setProductionSummary] = useState(null);
   const [alertsSummary, setAlertsSummary] = useState(null);
+  const [correlations, setCorrelations] = useState(null);
+  const [correlationLoading, setCorrelationLoading] = useState(false);
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -28,6 +30,22 @@ function Analytics() {
     };
     fetchAll();
   }, []);
+
+  const fetchCorrelations = async () => {
+    setCorrelationLoading(true);
+    try {
+      const res = await api.get('/analytics/correlations');
+      setCorrelations(res.data);
+      toast.success('Correlation analysis complete');
+    } catch (e) { toast.error('Correlation analysis failed'); }
+    finally { setCorrelationLoading(false); }
+  };
+
+  const correlationColor = (corr, strength) => {
+    if (corr === 'positive') return strength === 'strong' ? '#10b981' : '#6ee7b7';
+    if (corr === 'negative') return strength === 'strong' ? '#ef4444' : '#fca5a5';
+    return '#94a3b8';
+  };
 
   const barStyle = (pct, color) => ({
     height: '24px',
@@ -240,6 +258,92 @@ function Analytics() {
           <h3>Loading analytics data...</h3>
         </div>
       )}
+
+      {/* Correlation Analysis Section */}
+      <div style={sectionStyle}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+          <div style={sectionTitleStyle}>Correlation Analysis</div>
+          <button
+            className="btn btn-success"
+            onClick={fetchCorrelations}
+            disabled={correlationLoading}
+          >
+            {correlationLoading ? 'Analyzing...' : 'Run Correlation Analysis'}
+          </button>
+        </div>
+
+        {correlationLoading && (
+          <div style={{ textAlign: 'center', color: '#94a3b8', padding: '24px' }}>
+            <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
+            AI is analyzing cross-domain correlations...
+          </div>
+        )}
+
+        {correlations && !correlationLoading && (() => {
+          const analysis = correlations.analysis;
+          const corrs = analysis?.correlations || [];
+          return (
+            <div>
+              {/* Summary metrics */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ ...cardStyle, backgroundColor: '#0f172a' }}>
+                  <div style={cardValueStyle('#3b82f6')}>{correlations.summary?.avgOreGrade}%</div>
+                  <div style={cardLabelStyle}>Avg Ore Grade</div>
+                </div>
+                <div style={{ ...cardStyle, backgroundColor: '#0f172a' }}>
+                  <div style={cardValueStyle('#ef4444')}>{correlations.summary?.safetyIncidents}</div>
+                  <div style={cardLabelStyle}>Safety Incidents (30d)</div>
+                </div>
+                <div style={{ ...cardStyle, backgroundColor: '#0f172a' }}>
+                  <div style={cardValueStyle('#f59e0b')}>{correlations.summary?.equipmentDowntime}</div>
+                  <div style={cardLabelStyle}>Equipment Downtime</div>
+                </div>
+                <div style={{ ...cardStyle, backgroundColor: '#0f172a' }}>
+                  <div style={cardValueStyle('#8b5cf6')}>{correlations.summary?.avgFatigueHours}h</div>
+                  <div style={cardLabelStyle}>Avg Fatigue Hours</div>
+                </div>
+              </div>
+
+              {/* Correlation cards */}
+              {corrs.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+                  {corrs.map((c, i) => (
+                    <div key={i} style={{ backgroundColor: '#0f172a', border: `2px solid ${correlationColor(c.correlation, c.strength)}33`, borderRadius: '10px', padding: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: correlationColor(c.correlation, c.strength), padding: '2px 8px', borderRadius: '9999px', border: `1px solid ${correlationColor(c.correlation, c.strength)}` }}>
+                          {c.correlation} {c.strength}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '13px', color: '#e2e8f0', fontWeight: '600', marginBottom: '4px' }}>
+                        {c.metric_a} ↔ {c.metric_b}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.5' }}>{c.insight}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Top production risk */}
+              {analysis?.top_production_risk && (
+                <div style={{ backgroundColor: '#1e293b', border: '1px solid #ef444433', borderRadius: '8px', padding: '12px', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '11px', color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Top Production Risk</div>
+                  <div style={{ color: '#e2e8f0', fontSize: '14px' }}>{analysis.top_production_risk}</div>
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {analysis?.recommendations && analysis.recommendations.length > 0 && (
+                <div style={{ backgroundColor: '#1e293b', border: '1px solid #10b98133', borderRadius: '8px', padding: '12px' }}>
+                  <div style={{ fontSize: '11px', color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Recommendations</div>
+                  <ul style={{ margin: 0, paddingLeft: '16px', color: '#cbd5e1', fontSize: '14px' }}>
+                    {analysis.recommendations.map((r, i) => <li key={i} style={{ marginBottom: '4px' }}>{r}</li>)}
+                  </ul>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
     </div>
   );
 }
