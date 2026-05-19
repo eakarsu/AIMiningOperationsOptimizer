@@ -24,6 +24,7 @@ const navItems = [
   { path: '/search', label: 'Search', icon: '\u2315' },
   { path: '/audit-logs', label: 'Audit Log', icon: '\u2611' },
   { path: '/user-management', label: 'User Management', icon: '\u2603' },
+  { path: '/custom-views', label: 'Mining Views', icon: '\u2756' },
 ];
 
 function Layout({ children, user, onLogout }) {
