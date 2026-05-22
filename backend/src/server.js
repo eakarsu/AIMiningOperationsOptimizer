@@ -111,6 +111,7 @@ app.use('/api/ai', aiRoutes);
 
 // Custom Views (Mining Views) — mounted before any 404 handler
 app.use('/api/custom-views', require('./routes/customViews'));
+app.use('/api/tailings-pond-risk', require('./routes/tailingsPondRisk'));
 
 // Health check
 app.get('/api/health', (req, res) => {

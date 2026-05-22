@@ -20,7 +20,7 @@ router.post('/production-forecast', auth, async (req, res) => {
       recentLogsSample: recentLogs.slice(0, 10).map(l => l.toJSON ? l.toJSON() : l),
     };
     const raw = await aiService.optimizeDrillPattern(ctx);
-    const structured = aiService.parseAIJson(raw) || null;
+    const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured });
   } catch (error) {
     console.error('Production forecast error:', error.message);
@@ -41,7 +41,7 @@ router.post('/equipment-failure-predict', auth, async (req, res) => {
       equipment = all[0];
     }
     const raw = await aiService.analyzeEquipment(equipment ? (equipment.toJSON ? equipment.toJSON() : equipment) : {});
-    const structured = aiService.parseAIJson(raw);
+    const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured, equipment });
   } catch (error) {
     console.error('Equipment failure predict error:', error.message);
@@ -59,7 +59,7 @@ router.post('/safety-risk-assess', auth, async (req, res) => {
     sample.recentClusterCount = incidents.length;
     sample.clusterContext = incidents.slice(0, 10).map(i => i.toJSON ? i.toJSON() : i);
     const raw = await aiService.analyzeSafetyIncident(sample);
-    const structured = aiService.parseAIJson(raw);
+    const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured, recent_incident_count: incidents.length });
   } catch (error) {
     console.error('Safety risk assess error:', error.message);
@@ -80,7 +80,7 @@ router.post('/cost-optimize', auth, async (req, res) => {
     sample.portfolioSample = portfolio.slice(0, 10).map(p => p.toJSON ? p.toJSON() : p);
     sample.portfolioCount = portfolio.length;
     const raw = await aiService.analyzeCost(sample);
-    const structured = aiService.parseAIJson(raw);
+    const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured, portfolio_count: portfolio.length });
   } catch (error) {
     console.error('Cost optimize error:', error.message);
@@ -101,7 +101,7 @@ router.post('/environmental-risk', auth, async (req, res) => {
     sample.recentClusterCount = recent.length;
     sample.clusterContext = recent.slice(0, 10).map(r => r.toJSON ? r.toJSON() : r);
     const raw = await aiService.assessEnvironmentalCompliance(sample);
-    const structured = aiService.parseAIJson(raw);
+    const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured, recent_report_count: recent.length });
   } catch (error) {
     console.error('Environmental risk error:', error.message);
@@ -118,7 +118,7 @@ router.post('/geology-interpret', auth, async (req, res) => {
     const { survey } = req.body;
     if (!survey) return res.status(400).json({ error: 'survey is required (e.g., assay/borehole/lithology summary)' });
     const raw = await aiService.interpretGeology(survey);
-    const structured = aiService.parseAIJson(raw);
+    const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured });
   } catch (error) {
     console.error('Geology interpret error:', error.message);
@@ -160,7 +160,7 @@ router.post('/mine-to-mill', auth, async (req, res) => {
       payload: ctx,
       prompt_hint: 'Optimize material flow from mine to mill: scheduling, blending, throughput, downtime.',
     });
-    const structured = aiService.parseAIJson(raw);
+    const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured });
   } catch (error) {
     console.error('Mine-to-mill error:', error.message);
@@ -185,7 +185,7 @@ router.post('/safety-anomaly-detect', auth, async (req, res) => {
     sample.incidentSeries = incidents.map(i => i.toJSON ? i.toJSON() : i);
     sample.detectMode = 'anomaly_cluster';
     const raw = await aiService.analyzeSafetyIncident(sample);
-    const structured = aiService.parseAIJson(raw);
+    const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured, window_size: limit, incident_count: incidents.length });
   } catch (error) {
     console.error('Safety anomaly detect error:', error.message);
@@ -217,7 +217,7 @@ router.post('/regulatory-incident-report', auth, async (req, res) => {
     payload.targetJurisdiction = jurisdiction || 'MSHA';
     payload.outputFormat = 'regulatory_notice_draft';
     const raw = await aiService.analyzeSafetyIncident(payload);
-    const structured = aiService.parseAIJson(raw);
+    const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured, jurisdiction: payload.targetJurisdiction, incident_id: payload.id });
   } catch (error) {
     console.error('Regulatory incident report error:', error.message);

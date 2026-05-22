@@ -27,7 +27,13 @@ import ReportsPage from './pages/ReportsPage';
 import ExportPage from './pages/ExportPage';
 import AIToolsPage from './pages/AIToolsPage';
 import CustomViewsPage from './pages/CustomViewsPage';
+import TailingsPondRiskPage from './pages/TailingsPondRiskPage';
 import Layout from './components/Layout';
+
+import CodexCustomVizFeature from './pages/CodexCustomVizFeature';
+import CodexOperationsFeature from './pages/CodexOperationsFeature';
+
+import TimelineView from './pages/TimelineView';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -65,6 +71,10 @@ function App() {
       <div className="app">
         <ToastContainer position="top-right" autoClose={3000} theme="dark" />
         <Routes>
+        <Route path="/insights/timeline" element={<TimelineView />} />
+        <Route path="/codex/custom-viz" element={<CodexCustomVizFeature />} />
+        <Route path="/codex/operations" element={<CodexOperationsFeature />} />
+
           <Route path="/login" element={
             isAuthenticated ? <Navigate to="/" /> : <Login onLogin={handleLogin} />
           } />
@@ -91,6 +101,7 @@ function App() {
           <Route path="/export" element={authRoute(ExportPage)} />
           <Route path="/ai-tools" element={authRoute(AIToolsPage)} />
           <Route path="/custom-views" element={authRoute(CustomViewsPage)} />
+          <Route path="/tailings-pond-risk" element={authRoute(TailingsPondRiskPage)} />
         </Routes>
       </div>
     </Router>
