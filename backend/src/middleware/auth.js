@@ -1,7 +1,8 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../../.env') });
+const { jwtSecret } = require('../config/security');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mining-optimizer-secret-key-2024';
+const JWT_SECRET = jwtSecret();
 
 function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];

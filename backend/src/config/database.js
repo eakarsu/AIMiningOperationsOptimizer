@@ -1,13 +1,8 @@
 const { Sequelize } = require('sequelize');
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../../.env') });
 
-const sequelize = new Sequelize(
-  process.env.DB_NAME || 'mining_optimizer',
-  process.env.DB_USER || 'postgres',
-  process.env.DB_PASSWORD || 'postgres',
-  {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
+if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
     dialect: 'postgres',
     logging: false,
     pool: {
@@ -16,7 +11,6 @@ const sequelize = new Sequelize(
       acquire: 30000,
       idle: 10000
     }
-  }
-);
+});
 
 module.exports = sequelize;

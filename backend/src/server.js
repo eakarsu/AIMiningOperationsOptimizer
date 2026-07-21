@@ -108,10 +108,16 @@ app.use('/api/export', exportRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/operations-workflow', require('./routes/operationsWorkflow'));
 
 // Custom Views (Mining Views) — mounted before any 404 handler
 app.use('/api/custom-views', require('./routes/customViews'));
 app.use('/api/tailings-pond-risk', require('./routes/tailingsPondRisk'));
+
+app.use(/^\/api\/(?:gap-|mining-planner-agent|safety-anomaly-stream|equipment-maintenance-autonomous|env-compliance-multimodal|mine-to-mill-agent)/, (req,res,next) => {
+  if (process.env.ENABLE_EXPERIMENTAL_ROUTES === 'true') return next();
+  return res.status(501).json({error:'Generated/provider-backed surface is quarantined',required:'ENABLE_EXPERIMENTAL_ROUTES=true plus documented provider configuration'});
+});
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -124,29 +130,8 @@ async function start() {
     await sequelize.authenticate();
     console.log('Database connected successfully');
 
-    // Create ai_analyses table if it doesn't exist (safe idempotent migration)
-    await sequelize.query(`
-      CREATE TABLE IF NOT EXISTS ai_analyses (
-        id SERIAL PRIMARY KEY,
-        entity_type VARCHAR(50),
-        entity_id INTEGER,
-        user_id INTEGER,
-        result JSONB,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-    console.log('ai_analyses table ensured');
-
-    const isProd = process.env.NODE_ENV === 'production';
-    if (isProd) {
-      // In production never auto-alter the schema — run migrations instead.
-      // We only verify connectivity (authenticate above) and start listening.
-      console.log('Production mode: skipping sequelize.sync() — use migrations.');
-    } else {
-      // Development/staging: sync schema (alter=false to avoid data loss)
-      await sequelize.sync({ alter: false });
-      console.log('Database synced (development mode)');
-    }
+    // Startup is intentionally read-only. Schema changes are explicit migrations.
+    console.log('Database schema is not mutated at startup; run documented migrations separately.');
 
     app.listen(PORT, () => {
       console.log(`Backend server running on port ${PORT}`);
