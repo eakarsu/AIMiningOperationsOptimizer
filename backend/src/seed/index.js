@@ -2,13 +2,19 @@ const sequelize = require('../config/database');
 const { User, OreGrade, DrillPattern, SafetyIncident, Equipment, EnvironmentalCompliance, ProductionLog, WorkforceRecord, CostAnalysis, GeologyMap, HaulingLogistic, AuditLog, Alert, ShiftSchedule, MaintenanceSchedule, InventoryItem } = require('../models');
 const bcrypt = require('bcryptjs');
 
+function requireDemoPassword() {
+  const password = process.env.DEMO_PASSWORD || process.env.SEED_DEMO_PASSWORD || process.env.DEMO_SEED_PASSWORD || '';
+  if (password.length < 12 || password.length > 1024) throw new Error('DEMO_PASSWORD must contain 12-1024 characters');
+  return password;
+}
+
 async function seed() {
   try {
     await sequelize.sync({ force: true });
     console.log('Database synced successfully');
 
     // Seed Users
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const hashedPassword = await bcrypt.hash(requireDemoPassword(), 10);
     await User.bulkCreate([
       { email: 'admin@miningops.com', password: hashedPassword, name: 'Admin User', role: 'admin' },
       { email: 'operator@miningops.com', password: hashedPassword, name: 'John Operator', role: 'operator' },
@@ -308,7 +314,7 @@ async function seed() {
     console.log('Audit Logs seeded (10 items)');
 
     console.log('\n✅ All seed data inserted successfully!');
-    console.log('Default login: admin@miningops.com / admin123');
+    console.log('Demo login users provisioned from the local environment.');
     process.exit(0);
   } catch (error) {
     console.error('Seed error:', error);
