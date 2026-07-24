@@ -4,6 +4,7 @@ require('dotenv').config({ path: require('path').resolve(__dirname, '../../../.e
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const OPENROUTER_MODEL = process.env.OPENROUTER_MODEL || 'anthropic/claude-3-5-sonnet-20241022';
+const OPENROUTER_BASE_URL = (process.env.OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').replace(/\/$/, '');
 
 // Parse structured JSON from AI response
 function parseAIJson(content) {
@@ -22,6 +23,7 @@ function parseAIJson(content) {
 }
 
 async function callOpenRouter(prompt, systemPrompt = '') {
+  if (!OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY is not configured');
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
       model: OPENROUTER_MODEL,
@@ -33,9 +35,11 @@ async function callOpenRouter(prompt, systemPrompt = '') {
       temperature: 0.3
     });
 
+    const endpoint = new URL(`${OPENROUTER_BASE_URL}/chat/completions`);
     const options = {
-      hostname: 'openrouter.ai',
-      path: '/api/v1/chat/completions',
+      hostname: endpoint.hostname,
+      port: endpoint.port || undefined,
+      path: endpoint.pathname,
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -55,7 +59,11 @@ async function callOpenRouter(prompt, systemPrompt = '') {
             reject(new Error(parsed.error.message || 'OpenRouter API error'));
             return;
           }
-          const content = parsed.choices?.[0]?.message?.content || 'No response generated';
+          const content = parsed.choices?.[0]?.message?.content;
+          if (!content || !String(content).trim()) {
+            reject(new Error('OpenRouter returned empty content'));
+            return;
+          }
           resolve({
             content,
             parsed: parseAIJson(content),
