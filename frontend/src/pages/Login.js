@@ -1,19 +1,22 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import api from '../services/api';
 import { toast } from 'react-toastify';
 
 function Login({ onLogin }) {
+  const demoLoginLock = useRef(false);
+  const [demoLoginBusy, setDemoLoginBusy] = useState(false);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e, demoLoginCredentials) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/auth/login', { email, password });
+      const res = await api.post('/auth/login', { email: (demoLoginCredentials?.email ?? email), password: (demoLoginCredentials?.password ?? password) });
       toast.success('Welcome to MineOps AI!');
       onLogin(res.data.token, res.data.user);
     } catch (err) {
@@ -23,9 +26,29 @@ function Login({ onLogin }) {
     }
   };
 
-  const autoFill = () => {
-    setEmail(process.env.REACT_APP_DEMO_EMAIL || '');
-    setPassword(process.env.REACT_APP_DEMO_PASSWORD || '');
+  const handleDemoLogin = async (event) => {
+    event.preventDefault();
+    if (demoLoginLock.current) return;
+
+    const demoCredentials = {
+      email: process.env.REACT_APP_DEMO_EMAIL || '',
+      password: process.env.REACT_APP_DEMO_PASSWORD || '',
+    };
+    setEmail(demoCredentials.email);
+    setPassword(demoCredentials.password);
+    if (!demoCredentials.email || !demoCredentials.password) {
+      setError('Demo credentials are unavailable. Start the local demo with configured credentials.');
+      return;
+    }
+
+    demoLoginLock.current = true;
+    setDemoLoginBusy(true);
+    try {
+      await handleSubmit(event, demoCredentials);
+    } finally {
+      demoLoginLock.current = false;
+      setDemoLoginBusy(false);
+    }
   };
 
   return (
@@ -62,8 +85,13 @@ function Login({ onLogin }) {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-        <button className="auto-fill-btn" onClick={autoFill}>
-          Auto Fill Demo Credentials
+        <button
+          type="button"
+          disabled={loading || demoLoginBusy}
+          className="auto-fill-btn"
+          onClick={handleDemoLogin}
+        >
+          {demoLoginBusy ? 'Logging in…' : 'Log In as Demo'}
         </button>
       </div>
     </div>

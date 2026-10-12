@@ -1,3 +1,4 @@
+import FormattedAIReport from "../components/FormattedAIReport";
 import React, { useState } from 'react';
 import axios from 'axios';
 
@@ -29,7 +30,7 @@ export default function TailingsPondRiskPage() {
       <p>Forecast pond risk from freeboard, seepage, rainfall, production load, and inspection age.</p>
       <button onClick={forecast}>Run forecast</button>
       {error && <div className="error">{error}</div>}
-      {result && <pre className="ai-result">{JSON.stringify(result, null, 2)}</pre>}
+      {result && <FormattedAIReport response={result} />}
     </div>
   );
 }

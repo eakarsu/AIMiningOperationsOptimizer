@@ -1,22 +1,5 @@
 import React from 'react';
-
-function formatAIContent(text) {
-  if (!text) return '';
-
-  let html = text
-    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>')
-    .replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>')
-    .replace(/((?:<li>.*<\/li>\n?)+)/g, '<ul>$1</ul>')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br/>');
-
-  return `<p>${html}</p>`;
-}
+import FormattedAIReport from './FormattedAIReport';
 
 // Render structured JSON fields as cards based on entity type
 function StructuredDisplay({ parsed, entityType }) {
@@ -101,21 +84,9 @@ function StructuredDisplay({ parsed, entityType }) {
     );
   }
 
-  // Generic structured display for other types
-  return (
-    <div style={{ padding: '16px' }}>
-      {Object.entries(parsed).map(([key, val]) => {
-        if (key === '_parse_error') return null;
-        if (Array.isArray(val)) {
-          return <ListCard key={key} label={formatKey(key)} items={val.map(String)} />;
-        }
-        if (typeof val === 'object' && val !== null) {
-          return <InfoCard key={key} label={formatKey(key)} value={JSON.stringify(val)} />;
-        }
-        return <Card key={key} label={formatKey(key)} value={String(val)} />;
-      })}
-    </div>
-  );
+  // Generic structured output uses the same cards, lists, sections and tables
+  // as report history so returned and saved results stay visually consistent.
+  return <FormattedAIReport response={parsed} title={`${formatKey(entityType || 'AI')} analysis`} />;
 }
 
 function formatKey(key) {
@@ -175,6 +146,17 @@ function AIResultDisplay({ result, loading, entityType }) {
   // Try to get parsed structured JSON
   const parsed = result.parsed || (typeof content === 'object' ? content : null);
   const hasStructured = parsed && !parsed._parse_error && typeof parsed === 'object';
+  const hasSpecializedDisplay = hasStructured && (
+    (entityType === 'equipment' && parsed.health_score !== undefined)
+    || entityType === 'safety'
+    || parsed.risk_level
+    || parsed.quality_assessment
+    || parsed.grade_percentage !== undefined
+  );
+
+  if (!hasSpecializedDisplay) {
+    return <FormattedAIReport response={result} title={`${formatKey(entityType || 'AI')} analysis`} />;
+  }
 
   return (
     <div className="ai-result">
@@ -187,15 +169,7 @@ function AIResultDisplay({ result, loading, entityType }) {
           </span>
         )}
       </div>
-
-      {hasStructured ? (
-        <StructuredDisplay parsed={parsed} entityType={entityType} />
-      ) : (
-        <div
-          className="ai-result-content"
-          dangerouslySetInnerHTML={{ __html: formatAIContent(typeof content === 'string' ? content : JSON.stringify(content, null, 2)) }}
-        />
-      )}
+      <StructuredDisplay parsed={parsed} entityType={entityType} />
     </div>
   );
 }

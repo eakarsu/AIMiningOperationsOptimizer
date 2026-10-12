@@ -6,17 +6,32 @@ const router = express.Router();
 // which made `auth` an object and caused Express "callback function" errors.
 const { authenticateToken: auth } = require('../middleware/auth');
 const aiService = require('../services/aiService');
-const { ProductionLog, Equipment, SafetyIncident, EnvironmentalCompliance, CostAnalysis } = require('../models');
+const { Op } = require('sequelize');
+const { ProductionLog, DrillPattern, Equipment, SafetyIncident, EnvironmentalCompliance, CostAnalysis } = require('../models');
 
 // POST /api/ai/production-forecast — reuse drill-pattern analyzer + log context
 router.post('/production-forecast', auth, async (req, res) => {
   try {
-    const { drillPattern } = req.body;
+    const { drillPattern, drillPatternId, lookbackDays } = req.body;
+    const days = Math.max(1, Math.min(parseInt(lookbackDays, 10) || 30, 365));
+    let selectedPattern = drillPattern || null;
+    if (drillPatternId) {
+      const record = await DrillPattern.findByPk(drillPatternId);
+      if (!record) return res.status(404).json({ error: 'Drill pattern not found' });
+      selectedPattern = record.toJSON ? record.toJSON() : record;
+    }
     let recentLogs = [];
-    try { recentLogs = await ProductionLog.findAll({ limit: 30, order: [['createdAt', 'DESC']] }); } catch (e) {}
+    try {
+      recentLogs = await ProductionLog.findAll({
+        where: { createdAt: { [Op.gte]: new Date(Date.now() - days * 86400000) } },
+        limit: 30,
+        order: [['createdAt', 'DESC']],
+      });
+    } catch (e) {}
 
     const ctx = {
-      ...(drillPattern || {}),
+      ...(selectedPattern || {}),
+      lookbackDays: days,
       recentLogsSample: recentLogs.slice(0, 10).map(l => l.toJSON ? l.toJSON() : l),
     };
     const raw = await aiService.optimizeDrillPattern(ctx);
@@ -52,12 +67,29 @@ router.post('/equipment-failure-predict', auth, async (req, res) => {
 // POST /api/ai/safety-risk-assess — identify hazard patterns across recent incidents
 router.post('/safety-risk-assess', auth, async (req, res) => {
   try {
+    const { incidentId, lookbackDays } = req.body || {};
+    const days = Math.max(1, Math.min(parseInt(lookbackDays, 10) || 90, 365));
+    let selectedIncident = null;
+    if (incidentId) {
+      const record = await SafetyIncident.findByPk(incidentId);
+      if (!record) return res.status(404).json({ error: 'Safety incident not found' });
+      selectedIncident = record.toJSON ? record.toJSON() : record;
+    }
     let incidents = [];
-    try { incidents = await SafetyIncident.findAll({ limit: 30, order: [['createdAt', 'DESC']] }); } catch (e) {}
-    const sample = incidents[0] || { description: 'no recent incidents', severity: 'unknown' };
-    // Reuse analyzeSafetyIncident on the most recent incident; embed cluster context.
-    sample.recentClusterCount = incidents.length;
-    sample.clusterContext = incidents.slice(0, 10).map(i => i.toJSON ? i.toJSON() : i);
+    try {
+      incidents = await SafetyIncident.findAll({
+        where: { createdAt: { [Op.gte]: new Date(Date.now() - days * 86400000) } },
+        limit: 30,
+        order: [['createdAt', 'DESC']],
+      });
+    } catch (e) {}
+    const fallback = incidents[0] ? (incidents[0].toJSON ? incidents[0].toJSON() : incidents[0]) : { description: 'no recent incidents', severity: 'unknown' };
+    const sample = {
+      ...(selectedIncident || fallback),
+      lookbackDays: days,
+      recentClusterCount: incidents.length,
+      clusterContext: incidents.slice(0, 10).map(i => i.toJSON ? i.toJSON() : i),
+    };
     const raw = await aiService.analyzeSafetyIncident(sample);
     const structured = raw && raw.parsed ? raw.parsed : (raw && typeof raw.content === 'string' ? aiService.parseAIJson(raw.content) : null);
     res.json({ raw, structured, recent_incident_count: incidents.length });
