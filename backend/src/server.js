@@ -109,6 +109,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/operations-workflow', require('./routes/operationsWorkflow'));
+app.use('/api/feature-pack', require('../featurePack.cjs').createFeaturePackRouter({ authenticate: require('./middleware/auth').authenticateToken }));
 
 // Custom Views (Mining Views) — mounted before any 404 handler
 app.use('/api/custom-views', require('./routes/customViews'));

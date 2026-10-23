@@ -5,6 +5,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
+import FeaturePackPage from './pages/FeaturePackPage';
 import OreGrades from './pages/OreGrades';
 import DrillPatterns from './pages/DrillPatterns';
 import SafetyIncidents from './pages/SafetyIncidents';
@@ -80,6 +81,7 @@ function App() {
           } />
           <Route path="/" element={authRoute(Dashboard)} />
           <Route path="/ore-grades" element={authRoute(OreGrades)} />
+          <Route path="/feature-pack" element={authRoute(FeaturePackPage)} />
           <Route path="/drill-patterns" element={authRoute(DrillPatterns)} />
           <Route path="/safety-incidents" element={authRoute(SafetyIncidents)} />
           <Route path="/equipment" element={authRoute(EquipmentPage)} />
